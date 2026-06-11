@@ -43,11 +43,11 @@ public class CaesiumConfig {
         public MutatorEntry getTrim()          { return trim; }
         public void setTrim(MutatorEntry v)    { this.trim = v; }
         public MutatorEntry getLineNumber()    { return lineNumber; }
-        public void setLineNumber(MutatorEntry v) { this.lineNumber = v; }
+        public void setLineNumber(LineNumberEntry v) { this.lineNumber = v; }
         public MutatorEntry getLocalVariable() { return localVariable; }
-        public void setLocalVariable(MutatorEntry v) { this.localVariable = v; }
+        public void setLocalVariable(LocalVariableEntry v) { this.localVariable = v; }
         public MutatorEntry getString()        { return string; }
-        public void setString(MutatorEntry v)  { this.string = v; }
+        public void setString(StringEntry v)   { this.string = v; }
         public MutatorEntry getControlFlow()   { return controlFlow; }
         public void setControlFlow(MutatorEntry v) { this.controlFlow = v; }
         public MutatorEntry getNumber()        { return number; }
@@ -55,7 +55,7 @@ public class CaesiumConfig {
         public MutatorEntry getPolymorph()     { return polymorph; }
         public void setPolymorph(MutatorEntry v) { this.polymorph = v; }
         public MutatorEntry getReference()     { return reference; }
-        public void setReference(MutatorEntry v) { this.reference = v; }
+        public void setReference(ReferenceEntry v) { this.reference = v; }
         public MutatorEntry getClassFolder()   { return classFolder; }
         public void setClassFolder(MutatorEntry v) { this.classFolder = v; }
         public MutatorEntry getBadAnnotation() { return badAnnotation; }

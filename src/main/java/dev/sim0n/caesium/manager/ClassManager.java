@@ -1,150 +1,59 @@
-package dev.sim0n.caesium.manager;
+package dev.sim0n.caesium.mutator;
 
-import com.google.common.io.ByteStreams;
 import dev.sim0n.caesium.Caesium;
-import dev.sim0n.caesium.exception.CaesiumException;
-import dev.sim0n.caesium.mutator.impl.ClassFolderMutator;
-import dev.sim0n.caesium.mutator.impl.crasher.ImageCrashMutator;
-import dev.sim0n.caesium.util.ByteUtil;
+import dev.sim0n.caesium.util.StringUtil;
+import dev.sim0n.caesium.util.trait.Finishable;
 import dev.sim0n.caesium.util.wrapper.impl.ClassWrapper;
-
 import org.apache.logging.log4j.Logger;
-import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.Opcodes;
 
-import java.io.*;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.security.SecureRandom;
 import java.util.stream.IntStream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
-import java.util.zip.ZipOutputStream;
 
+public abstract class ClassMutator implements Opcodes, Finishable {
+    protected final Caesium caesium = Caesium.getInstance();
+    protected final Logger logger = Caesium.getLogger();
 
-public class ClassManager {
-    private final Caesium caesium = Caesium.getInstance();
+    protected final SecureRandom random = caesium.getRandom();
 
-    private final MutatorManager mutatorManager = caesium.getMutatorManager();
+    protected int counter;
 
-    private final Logger logger = Caesium.getLogger();
+    private boolean enabled = false;
 
-    private final Map<ClassWrapper, String> classes = new HashMap<>();
-    private final Map<String, byte[]> resources = new HashMap<>();
+    public boolean isEnabled() { return enabled; }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
-    private final ByteArrayOutputStream outputBuffer = new ByteArrayOutputStream();
+    public abstract void handle(ClassWrapper wrapper);
 
-    public void parseJar(File input) throws Exception {
-        logger.info("Loading classes...");
+    public String getRandomName() {
+        switch (caesium.getDictionary()) {
+            case ABC_LOWERCASE:
+                return StringUtil.getRandomString(3, 6, false);
 
-        try (ZipInputStream zis = new ZipInputStream(new FileInputStream(input))) {
-            ZipEntry entry;
+            case ABC:
+                return StringUtil.getRandomString(3, 6, true);
 
-            while ((entry = zis.getNextEntry()) != null) {
-                byte[] data = ByteStreams.toByteArray(zis);
-
-                String name = entry.getName();
-
-                if (name.endsWith(".class")) {
-                    ClassNode classNode = ByteUtil.parseClassBytes(data);
-
-                    classes.put(new ClassWrapper(classNode, false), name);
-                } else {
-                    if (name.equals("META-INF/MANIFEST.MF")) {
-                        String manifest = new String(data);
-
-                        // delete this line
-                        manifest = manifest.substring(0, manifest.length() - 2);
-
-                        // watermark the manifest
-                        manifest += String.format("Obfuscated-By: Caesium %s\r\n", Caesium.VERSION);
-
-                        data = manifest.getBytes();
-                    }
-
-                    resources.put(name, data);
-                }
+            case III: {
+                StringBuilder sb = new StringBuilder();
+                IntStream.range(0, 20).forEach(i -> sb.append(random.nextBoolean() ? "I" : "l"));
+                return sb.toString();
             }
-        }
 
-        logger.info("Loaded {} classes for mutation", classes.size());
-        caesium.separator();
-    }
+            case NUMBERS:
+                return String.valueOf(random.nextInt());
 
-    public void handleMutation() throws Exception {
-        try (ZipOutputStream out = new ZipOutputStream(outputBuffer)) {
-            Optional<ImageCrashMutator> imageCrashMutator = Optional.ofNullable(mutatorManager.getMutator(ImageCrashMutator.class));
-            Optional<ClassFolderMutator> classFolderMutator = Optional.ofNullable(mutatorManager.getMutator(ClassFolderMutator.class));
+            case WACK: {
+                StringBuilder sb = new StringBuilder();
+                IntStream.range(0, 20).forEach(i -> {
+                    if (random.nextBoolean())
+                        sb.append("\n");
+                    sb.append(random.nextBoolean() ? "I" : "l");
+                });
+                return sb.toString();
+            }
 
-            AtomicBoolean hideClasses = new AtomicBoolean(classFolderMutator.isPresent() && classFolderMutator.get().isEnabled());
-
-            imageCrashMutator.ifPresent(crasher -> {
-                if (!crasher.isEnabled())
-                    return;
-
-                ClassWrapper wrapper = crasher.getCrashClass();
-
-                classes.put(wrapper, String.format("%s.class", wrapper.node.name));
-            });
-
-            classes.forEach((node, name) -> {
-                mutatorManager.handleMutation(node);
-
-                try {
-                    if (hideClasses.get()) // turn them into folders
-                        name += "/";
-
-                    out.putNextEntry(new ZipEntry(name));
-                    out.write(ByteUtil.getClassBytes(node.node));
-
-                    if (hideClasses.get()) { // generate a bunch of fake classes
-                        String finalName = name;
-
-                        IntStream.range(0, 1 + caesium.getRandom().nextInt(10))
-                                .forEach(i -> {
-                                    try {
-                                        out.putNextEntry(new ZipEntry(String.format("%scaesium_%d.class", finalName, i ^ 27)));
-                                        out.write(new byte[] { 0 });
-                                    } catch (Exception e) {
-                                        e.printStackTrace();
-                                    }
-                                });
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            });
-
-            resources.forEach((name, data) -> {
-                try {
-                    out.putNextEntry(new ZipEntry(name));
-                    out.write(data);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            });
-        }
-
-        mutatorManager.handleMutationFinish();
-    }
-
-    /**
-     * Exports {@param output}
-     * @param output The obfuscated file to export
-     * @throws CaesiumException If unable to write output data
-     */
-    public void exportJar(File output) throws CaesiumException {
-        try {
-            FileOutputStream fos = new FileOutputStream(output);
-            fos.write(outputBuffer.toByteArray());
-            fos.close();
-        } catch (IOException e) {
-            throw new CaesiumException("Failed to write output data", e);
+            default:
+                return "Unsupported";
         }
     }
-
-    public Map<ClassWrapper, String> getClasses()         { return classes; }
-    public Map<String, byte[]> getResources()              { return resources; }
-    public MutatorManager getMutatorManager()              { return mutatorManager; }
-    public ByteArrayOutputStream getOutputBuffer()         { return outputBuffer; }
 }
