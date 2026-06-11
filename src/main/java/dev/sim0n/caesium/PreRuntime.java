@@ -67,7 +67,8 @@ public class PreRuntime {
     private static void loadJrtModule(String jrtUri) {
         try {
             FileSystem jrtFs = FileSystems.getFileSystem(URI.create("jrt:/"));
-            Path modulePath = jrtFs.getPath(URI.create(jrtUri).getPath());
+            String moduleName = URI.create(jrtUri).getPath().replaceFirst("^/modules/", "").replaceFirst("^/", "");
+            Path modulePath = jrtFs.getPath("/modules/" + moduleName);
             try (Stream<Path> walk = Files.walk(modulePath)) {
                 walk.filter(p -> p.toString().endsWith(".class")).forEach(classFile -> {
                     try {
@@ -155,8 +156,13 @@ public class PreRuntime {
             if (classWrapper.node.superName != null) {
                 tree.parentClasses.add(classWrapper.node.superName);
                 ClassWrapper superClass = classPath.get(classWrapper.node.superName);
-                if (superClass == null)
-                    throw new CaesiumException(classWrapper.node.superName + " is missing in the classpath.", null);
+                if (superClass == null) {
+                    hierarchy.put(classWrapper.node.name, tree);
+                    if (sub != null) {
+                        hierarchy.get(classWrapper.node.name).subClasses.add(sub.node.name);
+                    }
+                    return;
+                }
                 buildHierarchy(superClass, classWrapper);
             }
             if (classWrapper.node.interfaces != null && !classWrapper.node.interfaces.isEmpty()) {
@@ -164,7 +170,7 @@ public class PreRuntime {
                     tree.parentClasses.add(s);
                     ClassWrapper interfaceClass = classPath.get(s);
                     if (interfaceClass == null)
-                        throw new CaesiumException(s + " is missing in the classpath.", null);
+                        continue;
                     buildHierarchy(interfaceClass, classWrapper);
                 }
             }
