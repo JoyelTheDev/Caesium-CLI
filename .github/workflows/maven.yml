@@ -52,20 +52,21 @@ jobs:
           fi
           echo "next_number=$NEXT_NUM" >> $GITHUB_OUTPUT
           
-          # Rename the JAR
-          ORIGINAL_JAR="target/*.jar"
-          NEW_JAR="target/*-${NEXT_NUM}.jar"
+          # Find the actual JAR file (exclude original-* files)
+          ORIGINAL_JAR=$(ls target/*.jar 2>/dev/null | grep -v 'original-' | head -n1)
           
-          if [ ! -f "$ORIGINAL_JAR" ]; then
-            echo "❌ ERROR: Original JAR not found at $ORIGINAL_JAR"
+          if [ -z "$ORIGINAL_JAR" ] || [ ! -f "$ORIGINAL_JAR" ]; then
+            echo "❌ ERROR: Original JAR not found"
             ls -la target/
             exit 1
           fi
           
+          # Rename with build number
+          NEW_JAR="target/caesium-${NEXT_NUM}.jar"
           mv "$ORIGINAL_JAR" "$NEW_JAR"
           echo "JAR_FILE=$NEW_JAR" >> "$GITHUB_ENV"
-          echo "JAR_NAME=*-${NEXT_NUM}.jar" >> "$GITHUB_ENV"
-          echo "✅ Renamed to: Ceasium-${NEXT_NUM}.jar"
+          echo "JAR_NAME=caesium-${NEXT_NUM}.jar" >> "$GITHUB_ENV"
+          echo "✅ Renamed to: caesium-${NEXT_NUM}.jar"
 
       # -----------------------------
       # Generate changelog (since last tag)
