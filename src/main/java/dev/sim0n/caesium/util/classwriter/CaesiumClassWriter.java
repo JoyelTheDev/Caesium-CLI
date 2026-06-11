@@ -41,14 +41,17 @@ public class CaesiumClassWriter extends ClassWriter {
             e.printStackTrace();
         }
 
-        if (!"java/lang/Object".equals(first))
+        if (first != null && !"java/lang/Object".equals(first))
             return first;
 
-        if (!"java/lang/Object".equals(second))
+        if (second != null && !"java/lang/Object".equals(second))
             return second;
 
         try {
-            return getCommonSuperClass(returnClazz(type1).superName, returnClazz(type2).superName);
+            ClassNode c1 = returnClazz(type1);
+            ClassNode c2 = returnClazz(type2);
+            if (c1.superName != null && c2.superName != null)
+                return getCommonSuperClass(c1.superName, c2.superName);
         } catch (CaesiumException e) {
             e.printStackTrace();
         }
