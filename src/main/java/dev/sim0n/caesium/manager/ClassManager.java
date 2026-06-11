@@ -63,8 +63,8 @@ public class ClassManager {
                             }
                         }
 
-                        manifest = manifest.substring(0, manifest.length() - 2);
-                        manifest += String.format("Obfuscated-By: Caesium %s\r\n", Caesium.VERSION);
+                        manifest = manifest.replaceAll("[\r\n]+$", "");
+                        manifest += String.format("\r\nObfuscated-By: Caesium %s\r\n", Caesium.VERSION);
 
                         data = manifest.getBytes();
                     }
